@@ -1,9 +1,7 @@
-// =============================
-// CLOUDINARY UPLOAD FUNCTION
-// =============================
+// --- FUNGSI UPLOAD CLOUDINARY ---
 async function uploadToCloudinary(file) {
   const url = "https://api.cloudinary.com/v1_1/dljfdauc5/image/upload";
-  const preset = "unsigned"; // GANTI JIKA PRESET MU BERBEDA
+  const preset = "unsigned"; // GANTI: harus preset kamu
 
   let formData = new FormData();
   formData.append("file", file);
@@ -15,19 +13,13 @@ async function uploadToCloudinary(file) {
   });
 
   const data = await response.json();
-
-  if (!data.secure_url) {
-    throw new Error("Gagal upload ke Cloudinary");
-  }
-
   return data.secure_url;
 }
 
+// --- FIREBASE (VERSION 9 MODULAR) ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js";
 
-
-// =============================
-// FIREBASE SETUP (VERSI 8)
-// =============================
 const firebaseConfig = {
   apiKey: "AIzaSyDsnkZTIC_Aetylv5paMCw8oIGaK_p3bSE",
   authDomain: "stripora-9d124.firebaseapp.com",
@@ -38,57 +30,48 @@ const firebaseConfig = {
   measurementId: "G-JBG0XRLR70"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-
-
-// =============================
-// FORM SUBMIT
-// =============================
+// --- SUBMIT FORM ---
 document.getElementById("orderForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const status = document.getElementById("status");
   const submitBtn = document.getElementById("submitBtn");
-
   submitBtn.disabled = true;
-  status.style.color = "black";
   status.textContent = "Mengirim pesanan...";
 
-  const fileInput = document.getElementById("design").files[0];
-  let imageURL = "Tidak ada gambar";
+  const file = document.getElementById("design").files[0];
+  let imageURL = null;
 
   try {
-    // Upload gambar jika ada
-    if (fileInput) {
-      status.textContent = "Mengupload gambar ke Cloudinary...";
-      imageURL = await uploadToCloudinary(fileInput);
+    if (file) {
+      status.textContent = "Mengupload gambar...";
+      imageURL = await uploadToCloudinary(file);
     }
 
-    // Data formulir
     const data = {
       name: document.getElementById("name").value,
       whatsapp: document.getElementById("whatsapp").value,
       material: document.getElementById("material").value,
-      qty: parseInt(document.getElementById("qty").value),
+      qty: Number(document.getElementById("qty").value),
       note: document.getElementById("note").value,
-      image: imageURL,
+      image: imageURL || "Tidak ada gambar",
       time: new Date().toISOString()
     };
 
     status.textContent = "Menyimpan ke database...";
 
-    // SIMPAN ke Firestore
-    await db.collection("orders").add(data);
+    await addDoc(collection(db, "orders"), data);
 
-    status.textContent = "Pesanan berhasil dikirim! Admin akan menghubungi via WhatsApp.";
+    status.textContent = "Pesanan berhasil dikirim!";
     status.style.color = "green";
 
     document.getElementById("orderForm").reset();
 
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     status.textContent = "Terjadi kesalahan. Coba lagi.";
     status.style.color = "red";
   }
